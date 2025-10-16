@@ -1,100 +1,99 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inventario QR</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ver Producto - Inventario QR</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      text-align: center;
-      padding: 2rem;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f7fb;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
     }
     .card {
-      background: #fff;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      display: inline-block;
-      max-width: 90%;
+      max-width: 400px;
+      text-align: center;
+      animation: fadeIn 0.5s ease;
     }
     h1 {
-      color: #333;
+      font-size: 1.6rem;
+      color: #2c3e50;
       margin-bottom: 1rem;
     }
-    p {
-      font-size: 1.1rem;
-      margin: 0.5rem 0;
+    .stock {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      font-weight: bold;
+      display: inline-block;
     }
-    .error {
-      color: red;
+    .notfound {
+      background: #ffebee;
+      color: #c62828;
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1 id="producto-nombre">Cargando...</h1>
-    <p id="producto-codigo"></p>
-    <p id="producto-stock"></p>
+
+  <div class="card" id="card">
+    <p>Cargando producto...</p>
   </div>
 
   <script>
-    // Enlace público CSV de tu Google Sheets (publicado)
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+    // 🔗 URL pública de tu hoja de cálculo (CSV)
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
 
-    // Obtener parámetro "codigo" de la URL (por ejemplo: ?codigo=00100301)
     const params = new URLSearchParams(window.location.search);
-    const codigoBuscado = params.get("codigo");
+    const codigo = params.get("codigo");
+    const card = document.getElementById("card");
 
-    function mostrarError(mensaje) {
-      document.getElementById("producto-nombre").innerText = mensaje;
-      document.getElementById("producto-codigo").innerText = "";
-      document.getElementById("producto-stock").innerText = "";
-      document.querySelector(".card").classList.add("error");
-    }
-
-    if (!codigoBuscado) {
-      mostrarError("No se proporcionó código");
+    if (!codigo) {
+      card.innerHTML = `<div class="notfound">Código no especificado</div>`;
     } else {
-      fetch(SHEET_CSV_URL)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error("Error al cargar datos del inventario");
-          }
-          return response.text();
-        })
-        .then(csvText => {
-          // Convertir CSV en matriz de filas
-          const filas = csvText.trim().split("\n").map(linea => linea.split(","));
-          const encabezados = filas[0].map(h => h.trim().toLowerCase());
-          const data = filas.slice(1);
+      fetch(SHEET_URL)
+        .then(res => res.text())
+        .then(csv => {
+          const rows = csv.trim().split("\n").map(r => r.split(","));
+          const headers = rows[0].map(h => h.trim().toLowerCase());
+          const codigoIndex = headers.findIndex(h => h.includes("codigo"));
+          const productoIndex = headers.findIndex(h => h.includes("producto"));
+          const stockIndex = headers.findIndex(h => h.includes("stock"));
 
-          const idxCodigo = encabezados.indexOf("codigo");
-          const idxProducto = encabezados.indexOf("producto");
-          const idxStock = encabezados.indexOf("stock");
+          const producto = rows.find(r => r[codigoIndex] && r[codigoIndex].trim() === codigo);
 
-          if (idxCodigo < 0) {
-            mostrarError("No existe la columna CODIGO en la hoja");
-            return;
-          }
-
-          // Buscar la fila que coincida con el código
-          const fila = data.find(r => r[idxCodigo] === codigoBuscado);
-          if (!fila) {
-            mostrarError("Producto no encontrado");
+          if (!producto) {
+            card.innerHTML = `<div class="notfound">Producto no encontrado</div>`;
           } else {
-            const nombre = fila[idxProducto] || "";
-            const stock = fila[idxStock] || "";
+            const nombre = producto[productoIndex] || "(sin nombre)";
+            const stock = producto[stockIndex] || "0";
 
-            document.getElementById("producto-nombre").innerText = nombre;
-            document.getElementById("producto-codigo").innerText = "Código: " + codigoBuscado;
-            document.getElementById("producto-stock").innerText = "Stock disponible: " + stock;
+            card.innerHTML = `
+              <h1>${nombre}</h1>
+              <p><strong>Código:</strong> ${codigo}</p>
+              <p class="stock">Stock actual: ${stock}</p>
+            `;
           }
         })
         .catch(err => {
+          card.innerHTML = `<div class="notfound">Error al cargar datos</div>`;
           console.error(err);
-          mostrarError("Error leyendo datos");
         });
     }
   </script>
