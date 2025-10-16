@@ -1,101 +1,49 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ver Producto - Inventario QR</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #f4f7fb;
-      color: #333;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 2rem;
-      max-width: 400px;
-      text-align: center;
-      animation: fadeIn 0.5s ease;
-    }
-    h1 {
-      font-size: 1.6rem;
-      color: #2c3e50;
-      margin-bottom: 1rem;
-    }
-    .stock {
-      background: #e8f5e9;
-      color: #2e7d32;
-      padding: 0.5rem 1rem;
-      border-radius: 10px;
-      font-weight: bold;
-      display: inline-block;
-    }
-    .notfound {
-      background: #ffebee;
-      color: #c62828;
-      padding: 1rem 2rem;
-      border-radius: 10px;
-      font-weight: bold;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body>
+<script>
+  // 🔗 URL pública de tu hoja de cálculo (CSV)
+  const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
 
-  <div class="card" id="card">
-    <p>Cargando producto...</p>
-  </div>
+  const params = new URLSearchParams(window.location.search);
+  const codigo = params.get("codigo")?.trim();
+  const card = document.getElementById("card");
 
-  <script>
-    // 🔗 URL pública de tu hoja de cálculo (CSV)
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+  if (!codigo) {
+    card.innerHTML = `<div class="notfound">Código no especificado</div>`;
+  } else {
+    fetch(SHEET_URL)
+      .then(res => res.text())
+      .then(csv => {
+        const rows = csv.trim().split("\n").map(r => r.split(","));
+        const headers = rows[0].map(h => h.trim().toLowerCase());
+        const codigoIndex = headers.findIndex(h => h.includes("codigo"));
+        const productoIndex = headers.findIndex(h => h.includes("producto"));
+        const stockIndex = headers.findIndex(h => h.includes("stock"));
 
-    const params = new URLSearchParams(window.location.search);
-    const codigo = params.get("codigo");
-    const card = document.getElementById("card");
-
-    if (!codigo) {
-      card.innerHTML = `<div class="notfound">Código no especificado</div>`;
-    } else {
-      fetch(SHEET_URL)
-        .then(res => res.text())
-        .then(csv => {
-          const rows = csv.trim().split("\n").map(r => r.split(","));
-          const headers = rows[0].map(h => h.trim().toLowerCase());
-          const codigoIndex = headers.findIndex(h => h.includes("codigo"));
-          const productoIndex = headers.findIndex(h => h.includes("producto"));
-          const stockIndex = headers.findIndex(h => h.includes("stock"));
-
-          const producto = rows.find(r => r[codigoIndex] && r[codigoIndex].trim() === codigo);
-
-          if (!producto) {
-            card.innerHTML = `<div class="notfound">Producto no encontrado</div>`;
-          } else {
-            const nombre = producto[productoIndex] || "(sin nombre)";
-            const stock = producto[stockIndex] || "0";
-
-            card.innerHTML = `
-              <h1>${nombre}</h1>
-              <p><strong>Código:</strong> ${codigo}</p>
-              <p class="stock">Stock actual: ${stock}</p>
-            `;
+        let encontrado = null;
+        for (let i = 1; i < rows.length; i++) {
+          const codigoCelda = (rows[i][codigoIndex] || "").toString().trim().replace(/^0+/, "");
+          const codigoBuscado = codigo.replace(/^0+/, "");
+          if (codigoCelda === codigoBuscado) {
+            encontrado = rows[i];
+            break;
           }
-        })
-        .catch(err => {
-          card.innerHTML = `<div class="notfound">Error al cargar datos</div>`;
-          console.error(err);
-        });
-    }
-  </script>
-</body>
-</html>
+        }
+
+        if (!encontrado) {
+          card.innerHTML = `<div class="notfound">Producto no encontrado</div>`;
+        } else {
+          const nombre = encontrado[productoIndex] || "(sin nombre)";
+          const stock = encontrado[stockIndex] || "0";
+
+          card.innerHTML = `
+            <h1>${nombre}</h1>
+            <p><strong>Código:</strong> ${codigo}</p>
+            <p class="stock">Stock actual: ${stock}</p>
+          `;
+        }
+      })
+      .catch(err => {
+        card.innerHTML = `<div class="notfound">Error al cargar datos</div>`;
+        console.error(err);
+      });
+  }
+</script>
