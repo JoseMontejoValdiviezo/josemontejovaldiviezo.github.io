@@ -3,58 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stock del producto</title>
+  <title>Inventario QR</title>
   <style>
     body {
       font-family: Arial, sans-serif;
+      background: #f4f4f4;
       text-align: center;
       padding: 2rem;
-      background: #f4f6f8;
     }
     .card {
-      background: white;
+      background: #fff;
       padding: 2rem;
       border-radius: 12px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       display: inline-block;
+      max-width: 90%;
     }
-    h1 { color: #333; }
-    p { font-size: 1.2em; }
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 1.1rem;
+      margin: 0.5rem 0;
+    }
+    .error {
+      color: red;
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1 id="nombre"></h1>
-    <p id="stock"></p>
+    <h1 id="producto-nombre">Cargando...</h1>
+    <p id="producto-codigo"></p>
+    <p id="producto-stock"></p>
   </div>
 
   <script>
-    // 1. Tomar el código del URL, ej: ?codigo=00100301
+    // Enlace público CSV de tu Google Sheets (publicado)
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+
+    // Obtener parámetro "codigo" de la URL (por ejemplo: ?codigo=00100301)
     const params = new URLSearchParams(window.location.search);
-    const codigo = params.get("codigo");
+    const codigoBuscado = params.get("codigo");
 
-    // 2. Tu enlace público de Google Sheets (formato CSV)
-    const SHEET_URL = "TU_ENLACE_AQUI/export?format=csv";
+    function mostrarError(mensaje) {
+      document.getElementById("producto-nombre").innerText = mensaje;
+      document.getElementById("producto-codigo").innerText = "";
+      document.getElementById("producto-stock").innerText = "";
+      document.querySelector(".card").classList.add("error");
+    }
 
-    // 3. Leer los datos del sheet
-    fetch(SHEET_URL)
-      .then(res => res.text())
-      .then(text => {
-        const rows = text.split("\n").map(r => r.split(","));
-        const headers = rows[0];
-        const data = rows.slice(1);
-        const codigoIndex = headers.findIndex(h => h.toLowerCase().includes("codigo"));
-        const productoIndex = headers.findIndex(h => h.toLowerCase().includes("producto"));
-        const stockIndex = headers.findIndex(h => h.toLowerCase().includes("stock"));
+    if (!codigoBuscado) {
+      mostrarError("No se proporcionó código");
+    } else {
+      fetch(SHEET_CSV_URL)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Error al cargar datos del inventario");
+          }
+          return response.text();
+        })
+        .then(csvText => {
+          // Convertir CSV en matriz de filas
+          const filas = csvText.trim().split("\n").map(linea => linea.split(","));
+          const encabezados = filas[0].map(h => h.trim().toLowerCase());
+          const data = filas.slice(1);
 
-        const producto = data.find(r => r[codigoIndex] === codigo);
-        if (producto) {
-          document.getElementById("nombre").innerText = producto[productoIndex];
-          document.getElementById("stock").innerText = "Stock disponible: " + producto[stockIndex];
-        } else {
-          document.getElementById("nombre").innerText = "Producto no encontrado";
-        }
-      });
+          const idxCodigo = encabezados.indexOf("codigo");
+          const idxProducto = encabezados.indexOf("producto");
+          const idxStock = encabezados.indexOf("stock");
+
+          if (idxCodigo < 0) {
+            mostrarError("No existe la columna CODIGO en la hoja");
+            return;
+          }
+
+          // Buscar la fila que coincida con el código
+          const fila = data.find(r => r[idxCodigo] === codigoBuscado);
+          if (!fila) {
+            mostrarError("Producto no encontrado");
+          } else {
+            const nombre = fila[idxProducto] || "";
+            const stock = fila[idxStock] || "";
+
+            document.getElementById("producto-nombre").innerText = nombre;
+            document.getElementById("producto-codigo").innerText = "Código: " + codigoBuscado;
+            document.getElementById("producto-stock").innerText = "Stock disponible: " + stock;
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          mostrarError("Error leyendo datos");
+        });
+    }
   </script>
 </body>
 </html>
