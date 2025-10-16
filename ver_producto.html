@@ -1,94 +1,85 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Producto</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle del Producto</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f7f9fc;
-      text-align: center;
-      padding: 50px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
     .card {
-      display: inline-block;
       background: white;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      border-radius: 14px;
+      padding: 25px 35px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
     }
     h1 {
+      font-size: 1.3em;
       color: #333;
     }
-    p {
-      font-size: 18px;
-      color: #555;
+    .stock {
+      font-size: 1.1em;
+      color: #0078D7;
+      margin-top: 15px;
+      font-weight: bold;
     }
-    .notfound {
+    .error {
       color: red;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div id="contenido">
+  <div class="card">
     <h1>Buscando producto...</h1>
+    <p class="stock"></p>
   </div>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?gid=0&single=true&output=csv";
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
 
-    async function cargarDatos() {
-      const params = new URLSearchParams(window.location.search);
-      const codigoBuscado = params.get("codigo");
-      const contenedor = document.getElementById("contenido");
+    const params = new URLSearchParams(window.location.search);
+    const codigoBuscado = params.get("codigo");
 
-      if (!codigoBuscado) {
-        contenedor.innerHTML = "<h1 class='notfound'>Código no proporcionado</h1>";
-        return;
-      }
+    fetch(SHEET_URL)
+      .then(res => res.text())
+      .then(text => {
+        const rows = text.split("\n").map(r => r.split(","));
+        const headers = rows[0].map(h => h.trim().toLowerCase());
+        const codigoIndex = headers.indexOf("codigo");
+        const productoIndex = headers.indexOf("producto");
+        const stockIndex = headers.indexOf("stock");
 
-      try {
-        const respuesta = await fetch(SHEET_URL);
-        const texto = await respuesta.text();
-
-        // Convertir CSV a filas
-        const filas = texto.split("\n").map(l => l.split(","));
-        const encabezados = filas[0].map(h => h.trim().toUpperCase());
-
-        const idxCodigo = encabezados.indexOf("CODIGO");
-        const idxProducto = encabezados.indexOf("PRODUCTO");
-        const idxStock = encabezados.indexOf("STOCK");
-
-        if (idxCodigo === -1) {
-          contenedor.innerHTML = "<h1 class='notfound'>Error: no se encontró columna CODIGO</h1>";
-          return;
+        let encontrado = false;
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          const codigo = row[codigoIndex]?.trim();
+          if (codigo === codigoBuscado) {
+            document.querySelector("h1").textContent = row[productoIndex];
+            document.querySelector(".stock").textContent = "Stock disponible: " + row[stockIndex];
+            encontrado = true;
+            break;
+          }
         }
 
-        // Buscar producto
-        const producto = filas.find((fila, i) => i > 0 && fila[idxCodigo]?.trim() === codigoBuscado);
-
-        if (producto) {
-          const nombre = producto[idxProducto] || "Sin nombre";
-          const stock = producto[idxStock] || "0";
-
-          contenedor.innerHTML = `
-            <div class="card">
-              <h1>${nombre}</h1>
-              <p><b>Código:</b> ${codigoBuscado}</p>
-              <p><b>Stock disponible:</b> ${stock}</p>
-            </div>
-          `;
-        } else {
-          contenedor.innerHTML = `<h1 class='notfound'>Producto no encontrado</h1>`;
+        if (!encontrado) {
+          document.querySelector("h1").textContent = "❌ Producto no encontrado";
+          document.querySelector(".stock").textContent = "";
         }
-      } catch (err) {
-        contenedor.innerHTML = `<h1 class='notfound'>Error al leer los datos</h1><p>${err}</p>`;
-      }
-    }
-
-    cargarDatos();
+      })
+      .catch(err => {
+        document.querySelector("h1").textContent = "⚠️ Error al cargar datos";
+        document.querySelector(".stock").textContent = err.message;
+      });
   </script>
 </body>
 </html>
