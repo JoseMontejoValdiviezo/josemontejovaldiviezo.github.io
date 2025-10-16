@@ -1,49 +1,56 @@
-<script>
-  // 🔗 URL pública de tu hoja de cálculo (CSV)
-  const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ver Producto</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; padding: 40px; }
+    .card { background: white; padding: 25px; border-radius: 12px; max-width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+    h1 { color: #2b5797; }
+    .notfound { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="card" id="contenido">
+    <h1>Cargando producto...</h1>
+  </div>
 
-  const params = new URLSearchParams(window.location.search);
-  const codigo = params.get("codigo")?.trim();
-  const card = document.getElementById("card");
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const codigoBuscado = params.get("codigo");
 
-  if (!codigo) {
-    card.innerHTML = `<div class="notfound">Código no especificado</div>`;
-  } else {
-    fetch(SHEET_URL)
+    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/gviz/tq?tqx=out:json";
+
+    fetch(sheetURL)
       .then(res => res.text())
-      .then(csv => {
-        const rows = csv.trim().split("\n").map(r => r.split(","));
-        const headers = rows[0].map(h => h.trim().toLowerCase());
-        const codigoIndex = headers.findIndex(h => h.includes("codigo"));
-        const productoIndex = headers.findIndex(h => h.includes("producto"));
-        const stockIndex = headers.findIndex(h => h.includes("stock"));
+      .then(text => {
+        const json = JSON.parse(text.substr(47).slice(0, -2)); // Limpiar texto extra
+        const filas = json.table.rows.map(r => r.c.map(c => c ? c.v : ""));
+        const encabezados = filas[0];
+        const datos = filas.slice(1);
 
-        let encontrado = null;
-        for (let i = 1; i < rows.length; i++) {
-          const codigoCelda = (rows[i][codigoIndex] || "").toString().trim().replace(/^0+/, "");
-          const codigoBuscado = codigo.replace(/^0+/, "");
-          if (codigoCelda === codigoBuscado) {
-            encontrado = rows[i];
-            break;
-          }
-        }
+        // Buscar producto
+        const indiceCodigo = encabezados.indexOf("CODIGO");
+        const producto = datos.find(f => String(f[indiceCodigo]).trim() === String(codigoBuscado).trim());
 
-        if (!encontrado) {
-          card.innerHTML = `<div class="notfound">Producto no encontrado</div>`;
+        const contenedor = document.getElementById("contenido");
+
+        if (producto) {
+          let html = "<h1>📦 Producto encontrado</h1><ul style='list-style:none;padding:0;'>";
+          encabezados.forEach((col, i) => {
+            html += `<li><strong>${col}:</strong> ${producto[i]}</li>`;
+          });
+          html += "</ul>";
+          contenedor.innerHTML = html;
         } else {
-          const nombre = encontrado[productoIndex] || "(sin nombre)";
-          const stock = encontrado[stockIndex] || "0";
-
-          card.innerHTML = `
-            <h1>${nombre}</h1>
-            <p><strong>Código:</strong> ${codigo}</p>
-            <p class="stock">Stock actual: ${stock}</p>
-          `;
+          contenedor.innerHTML = `<h1 class='notfound'>❌ Producto no encontrado</h1><p>Código: ${codigoBuscado}</p>`;
         }
       })
       .catch(err => {
-        card.innerHTML = `<div class="notfound">Error al cargar datos</div>`;
-        console.error(err);
+        document.getElementById("contenido").innerHTML = `<h1>Error al cargar datos</h1><p>${err}</p>`;
       });
-  }
-</script>
+  </script>
+</body>
+</html>
+
