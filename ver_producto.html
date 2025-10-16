@@ -3,83 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detalle del Producto</title>
+  <title>Ver Producto - Sistema de Inventario</title>
   <style>
     body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #f5f7fa;
+      font-family: "Segoe UI", sans-serif;
+      background: #f4f4f4;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
     }
     .card {
       background: white;
-      border-radius: 14px;
-      padding: 25px 35px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 30px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      max-width: 420px;
       text-align: center;
-      width: 90%;
-      max-width: 400px;
     }
     h1 {
-      font-size: 1.3em;
+      font-size: 1.4em;
       color: #333;
     }
-    .stock {
+    p {
       font-size: 1.1em;
-      color: #0078D7;
-      margin-top: 15px;
-      font-weight: bold;
+      color: #444;
     }
     .error {
       color: red;
       font-weight: bold;
     }
+    .loader {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #0078d7;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Buscando producto...</h1>
-    <p class="stock"></p>
+    <div id="loader" class="loader"></div>
+    <h1 id="nombre">Cargando producto...</h1>
+    <p id="codigo"></p>
+    <p id="stock"></p>
   </div>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+    // URL del CSV publicado desde Google Sheets
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
 
+    // Obtener código desde la URL
     const params = new URLSearchParams(window.location.search);
-    const codigoBuscado = params.get("codigo");
+    const codigoParam = params.get("codigo")?.trim();
 
-    fetch(SHEET_URL)
-      .then(res => res.text())
-      .then(text => {
-        const rows = text.split("\n").map(r => r.split(","));
-        const headers = rows[0].map(h => h.trim().toLowerCase());
-        const codigoIndex = headers.indexOf("codigo");
-        const productoIndex = headers.indexOf("producto");
-        const stockIndex = headers.indexOf("stock");
+    const nombreEl = document.getElementById("nombre");
+    const codigoEl = document.getElementById("codigo");
+    const stockEl = document.getElementById("stock");
+    const loader = document.getElementById("loader");
 
-        let encontrado = false;
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          const codigo = row[codigoIndex]?.trim();
-          if (codigo === codigoBuscado) {
-            document.querySelector("h1").textContent = row[productoIndex];
-            document.querySelector(".stock").textContent = "Stock disponible: " + row[stockIndex];
-            encontrado = true;
-            break;
+    if (!codigoParam) {
+      nombreEl.innerText = "❌ No se proporcionó un código.";
+      loader.style.display = "none";
+    } else {
+      fetch(sheetUrl)
+        .then(res => res.text())
+        .then(csvText => {
+          const rows = csvText.split("\n").map(r => r.split(","));
+          const headers = rows[0].map(h => h.trim().toLowerCase());
+          const codigoIndex = headers.indexOf("codigo");
+          const productoIndex = headers.indexOf("producto");
+          const stockIndex = headers.indexOf("stock");
+
+          if (codigoIndex === -1) throw new Error("No se encontró columna 'codigo'");
+
+          const producto = rows.find(row => row[codigoIndex]?.trim() === codigoParam);
+
+          loader.style.display = "none";
+
+          if (producto) {
+            nombreEl.innerText = producto[productoIndex] || "Nombre no disponible";
+            codigoEl.innerText = "Código: " + (producto[codigoIndex] || codigoParam);
+            stockEl.innerText = "Stock actual: " + (producto[stockIndex] || "N/D");
+          } else {
+            nombreEl.innerText = "❌ Producto no encontrado";
+            codigoEl.innerText = "Código escaneado: " + codigoParam;
+            stockEl.innerText = "";
+            nombreEl.classList.add("error");
           }
-        }
-
-        if (!encontrado) {
-          document.querySelector("h1").textContent = "❌ Producto no encontrado";
-          document.querySelector(".stock").textContent = "";
-        }
-      })
-      .catch(err => {
-        document.querySelector("h1").textContent = "⚠️ Error al cargar datos";
-        document.querySelector(".stock").textContent = err.message;
-      });
+        })
+        .catch(err => {
+          loader.style.display = "none";
+          nombreEl.innerText = "⚠️ Error al cargar datos";
+          codigoEl.innerText = err.message;
+          nombreEl.classList.add("error");
+        });
+    }
   </script>
 </body>
 </html>
