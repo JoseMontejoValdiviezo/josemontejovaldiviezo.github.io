@@ -1,56 +1,94 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ver Producto</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Producto</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #f3f3f3; padding: 40px; }
-    .card { background: white; padding: 25px; border-radius: 12px; max-width: 400px; margin: auto; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-    h1 { color: #2b5797; }
-    .notfound { color: red; font-weight: bold; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f9fc;
+      text-align: center;
+      padding: 50px;
+    }
+    .card {
+      display: inline-block;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    p {
+      font-size: 18px;
+      color: #555;
+    }
+    .notfound {
+      color: red;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <div class="card" id="contenido">
-    <h1>Cargando producto...</h1>
+  <div id="contenido">
+    <h1>Buscando producto...</h1>
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const codigoBuscado = params.get("codigo");
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?gid=0&single=true&output=csv";
 
-    const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/gviz/tq?tqx=out:json";
+    async function cargarDatos() {
+      const params = new URLSearchParams(window.location.search);
+      const codigoBuscado = params.get("codigo");
+      const contenedor = document.getElementById("contenido");
 
-    fetch(sheetURL)
-      .then(res => res.text())
-      .then(text => {
-        const json = JSON.parse(text.substr(47).slice(0, -2)); // Limpiar texto extra
-        const filas = json.table.rows.map(r => r.c.map(c => c ? c.v : ""));
-        const encabezados = filas[0];
-        const datos = filas.slice(1);
+      if (!codigoBuscado) {
+        contenedor.innerHTML = "<h1 class='notfound'>Código no proporcionado</h1>";
+        return;
+      }
+
+      try {
+        const respuesta = await fetch(SHEET_URL);
+        const texto = await respuesta.text();
+
+        // Convertir CSV a filas
+        const filas = texto.split("\n").map(l => l.split(","));
+        const encabezados = filas[0].map(h => h.trim().toUpperCase());
+
+        const idxCodigo = encabezados.indexOf("CODIGO");
+        const idxProducto = encabezados.indexOf("PRODUCTO");
+        const idxStock = encabezados.indexOf("STOCK");
+
+        if (idxCodigo === -1) {
+          contenedor.innerHTML = "<h1 class='notfound'>Error: no se encontró columna CODIGO</h1>";
+          return;
+        }
 
         // Buscar producto
-        const indiceCodigo = encabezados.indexOf("CODIGO");
-        const producto = datos.find(f => String(f[indiceCodigo]).trim() === String(codigoBuscado).trim());
-
-        const contenedor = document.getElementById("contenido");
+        const producto = filas.find((fila, i) => i > 0 && fila[idxCodigo]?.trim() === codigoBuscado);
 
         if (producto) {
-          let html = "<h1>📦 Producto encontrado</h1><ul style='list-style:none;padding:0;'>";
-          encabezados.forEach((col, i) => {
-            html += `<li><strong>${col}:</strong> ${producto[i]}</li>`;
-          });
-          html += "</ul>";
-          contenedor.innerHTML = html;
+          const nombre = producto[idxProducto] || "Sin nombre";
+          const stock = producto[idxStock] || "0";
+
+          contenedor.innerHTML = `
+            <div class="card">
+              <h1>${nombre}</h1>
+              <p><b>Código:</b> ${codigoBuscado}</p>
+              <p><b>Stock disponible:</b> ${stock}</p>
+            </div>
+          `;
         } else {
-          contenedor.innerHTML = `<h1 class='notfound'>❌ Producto no encontrado</h1><p>Código: ${codigoBuscado}</p>`;
+          contenedor.innerHTML = `<h1 class='notfound'>Producto no encontrado</h1>`;
         }
-      })
-      .catch(err => {
-        document.getElementById("contenido").innerHTML = `<h1>Error al cargar datos</h1><p>${err}</p>`;
-      });
+      } catch (err) {
+        contenedor.innerHTML = `<h1 class='notfound'>Error al leer los datos</h1><p>${err}</p>`;
+      }
+    }
+
+    cargarDatos();
   </script>
 </body>
 </html>
-
