@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock del producto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 2rem;
+      background: #f4f6f8;
+    }
+    .card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: inline-block;
+    }
+    h1 { color: #333; }
+    p { font-size: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="nombre"></h1>
+    <p id="stock"></p>
+  </div>
+
+  <script>
+    // 1. Tomar el código del URL, ej: ?codigo=00100301
+    const params = new URLSearchParams(window.location.search);
+    const codigo = params.get("codigo");
+
+    // 2. Tu enlace público de Google Sheets (formato CSV)
+    const SHEET_URL = "TU_ENLACE_AQUI/export?format=csv";
+
+    // 3. Leer los datos del sheet
+    fetch(SHEET_URL)
+      .then(res => res.text())
+      .then(text => {
+        const rows = text.split("\n").map(r => r.split(","));
+        const headers = rows[0];
+        const data = rows.slice(1);
+        const codigoIndex = headers.findIndex(h => h.toLowerCase().includes("codigo"));
+        const productoIndex = headers.findIndex(h => h.toLowerCase().includes("producto"));
+        const stockIndex = headers.findIndex(h => h.toLowerCase().includes("stock"));
+
+        const producto = data.find(r => r[codigoIndex] === codigo);
+        if (producto) {
+          document.getElementById("nombre").innerText = producto[productoIndex];
+          document.getElementById("stock").innerText = "Stock disponible: " + producto[stockIndex];
+        } else {
+          document.getElementById("nombre").innerText = "Producto no encontrado";
+        }
+      });
+  </script>
+</body>
+</html>
