@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ver Producto - Sistema de Inventario</title>
+  <title>Ver Producto - InventarioQR</title>
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
@@ -22,9 +22,18 @@
       max-width: 420px;
       text-align: center;
     }
-    h1 { font-size: 1.4em; color: #333; }
-    p { font-size: 1.1em; color: #444; }
-    .error { color: red; font-weight: bold; }
+    h1 {
+      font-size: 1.4em;
+      color: #333;
+    }
+    p {
+      font-size: 1.1em;
+      color: #444;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
     .loader {
       border: 5px solid #f3f3f3;
       border-top: 5px solid #0078d7;
@@ -38,19 +47,18 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    input {
+    input, button {
       padding: 10px;
+      margin-top: 10px;
       width: 80%;
-      margin-bottom: 10px;
       border-radius: 5px;
       border: 1px solid #ccc;
+      font-size: 1em;
     }
     button {
       background-color: #0078d7;
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
       cursor: pointer;
     }
     button:hover {
@@ -65,19 +73,15 @@
     <p id="codigo"></p>
     <p id="stock"></p>
 
-    <!-- 🟢 FORMULARIO DE RETIRO -->
-    <div id="formulario" style="display:none;">
-      <h2>Retirar producto</h2>
-      <input type="text" id="codigoInput" placeholder="Código del producto"><br>
-      <input type="number" id="cantidadInput" placeholder="Cantidad a retirar" min="1"><br>
-      <input type="text" id="usuarioInput" placeholder="Nombre del usuario"><br>
-      <button onclick="retirarProducto()">Retirar</button>
-      <p id="mensaje"></p>
+    <div id="retirarDiv" style="display:none;">
+      <input type="number" id="cantidad" placeholder="Cantidad a retirar">
+      <input type="text" id="persona" placeholder="Nombre de quien retira">
+      <button id="btnRetirar">Retirar producto</button>
     </div>
   </div>
 
   <script>
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaKAl4VICxc-PMg0giSlbdEq4IQ6NZgMJ_QPpMQhM6M6AynoWVgXkfpcGQDJwqKyFK6TCTY70s_eOd/pub?output=csv";
+    const apiUrl = "https://script.google.com/macros/s/AKfycbxsh9LkRmPzgZatq8zKWLETgNO2EKNMOXwRARWvDdpt5N2UFe6K2vW-KGigLt9jeso43A/exec";
     const params = new URLSearchParams(window.location.search);
     const codigoParam = params.get("codigo")?.trim();
 
@@ -85,63 +89,60 @@
     const codigoEl = document.getElementById("codigo");
     const stockEl = document.getElementById("stock");
     const loader = document.getElementById("loader");
-    const formEl = document.getElementById("formulario");
+    const retirarDiv = document.getElementById("retirarDiv");
 
     if (!codigoParam) {
       nombreEl.innerText = "❌ No se proporcionó un código.";
       loader.style.display = "none";
     } else {
-      fetch(sheetUrl)
-        .then(res => res.text())
-        .then(csvText => {
-          const rows = csvText.split("\n").map(r => r.split(","));
-          const headers = rows[0].map(h => h.trim().toLowerCase());
-          const codigoIndex = headers.indexOf("codigo");
-          const productoIndex = headers.indexOf("producto");
-          const stockIndex = headers.indexOf("stock");
-
-          const producto = rows.find(row => row[codigoIndex]?.trim() === codigoParam);
+      fetch(`${apiUrl}?action=ver&codigo=${codigoParam}`)
+        .then(res => res.json())
+        .then(data => {
           loader.style.display = "none";
+          if (data.success) {
+            nombreEl.innerText = data.producto;
+            codigoEl.innerText = "Código: " + data.codigo;
+            stockEl.innerText = "Stock actual: " + data.stock;
+            retirarDiv.style.display = "block";
 
-          if (producto) {
-            nombreEl.innerText = producto[productoIndex] || "Nombre no disponible";
-            codigoEl.innerText = "Código: " + (producto[codigoIndex] || codigoParam);
-            stockEl.innerText = "Stock actual: " + (producto[stockIndex] || "N/D");
-            formEl.style.display = "block";
-            document.getElementById("codigoInput").value = codigoParam;
+            document.getElementById("btnRetirar").onclick = () => {
+              const cantidad = parseInt(document.getElementById("cantidad").value);
+              const persona = document.getElementById("persona").value.trim();
+              if (!cantidad || cantidad <= 0 || !persona) {
+                alert("Ingrese cantidad válida y nombre.");
+                return;
+              }
+              fetch(apiUrl, {
+                method: "POST",
+                body: new URLSearchParams({
+                  action: "retirar",
+                  codigo: codigoParam,
+                  cantidad: cantidad,
+                  persona: persona
+                })
+              })
+              .then(res => res.json())
+              .then(r => {
+                if (r.success) {
+                  alert("✅ Retiro realizado correctamente");
+                  stockEl.innerText = "Stock actualizado: " + r.nuevoStock;
+                } else {
+                  alert("❌ " + r.message);
+                }
+              })
+              .catch(() => alert("⚠️ Error al procesar el retiro"));
+            };
           } else {
             nombreEl.innerText = "❌ Producto no encontrado";
+            codigoEl.innerText = "Código: " + codigoParam;
             nombreEl.classList.add("error");
           }
+        })
+        .catch(() => {
+          loader.style.display = "none";
+          nombreEl.innerText = "⚠️ Error al cargar datos";
+          nombreEl.classList.add("error");
         });
-    }
-
-    // 🟢 FUNCIÓN PARA RETIRAR PRODUCTO
-    function retirarProducto() {
-      const codigo = document.getElementById("codigoInput").value.trim();
-      const cantidad = document.getElementById("cantidadInput").value.trim();
-      const usuario = document.getElementById("usuarioInput").value.trim();
-      const mensajeEl = document.getElementById("mensaje");
-
-      if (!codigo || !cantidad || !usuario) {
-        mensajeEl.innerText = "Por favor, completa todos los campos.";
-        return;
-      }
-
-      mensajeEl.innerText = "Procesando...";
-
-      fetch("http://127.0.0.1:5000/retirar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo, cantidad, usuario })
-      })
-      .then(res => res.json())
-      .then(data => {
-        mensajeEl.innerText = data.mensaje;
-      })
-      .catch(err => {
-        mensajeEl.innerText = "Error: " + err.message;
-      });
     }
   </script>
 </body>
