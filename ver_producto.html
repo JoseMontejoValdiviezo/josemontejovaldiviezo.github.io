@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
-      background: #f4f4f4;
+      background: #eef2f7;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -16,32 +16,37 @@
     }
     .card {
       background: white;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 30px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
       max-width: 420px;
       text-align: center;
     }
     h1 {
       font-size: 1.4em;
-      color: #333;
+      color: #2a2a2a;
+      margin-bottom: 10px;
     }
     p {
       font-size: 1.1em;
       color: #444;
     }
     .error {
-      color: red;
+      color: #e74c3c;
+      font-weight: bold;
+    }
+    .success {
+      color: #2ecc71;
       font-weight: bold;
     }
     .loader {
       border: 5px solid #f3f3f3;
       border-top: 5px solid #0078d7;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
+      width: 45px;
+      height: 45px;
       animation: spin 1s linear infinite;
-      margin: 20px auto;
+      margin: 25px auto;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
@@ -60,9 +65,16 @@
       color: white;
       border: none;
       cursor: pointer;
+      transition: 0.2s;
     }
     button:hover {
       background-color: #005fa3;
+    }
+    #retryBtn {
+      background: #e74c3c;
+    }
+    #retryBtn:hover {
+      background: #c0392b;
     }
   </style>
 </head>
@@ -78,10 +90,15 @@
       <input type="text" id="persona" placeholder="Nombre de quien retira">
       <button id="btnRetirar">Retirar producto</button>
     </div>
+
+    <div id="errorDiv" style="display:none;">
+      <p class="error" id="errorMsg"></p>
+      <button id="retryBtn">Reintentar</button>
+    </div>
   </div>
 
   <script>
-    // 🔗 URL del Apps Script publicado como aplicación web
+    // 🔗 Cambia esta URL por la de tu implementación final (la que termina en /exec)
     const apiUrl = "https://script.google.com/macros/s/AKfycbxWS6Xi1V7YVYHIfkea9VK9YWu7nZIGiQ1LzP-XKNva0iRqxQMPaKlGE1T2-reWplj7AA/exec";
 
     const params = new URLSearchParams(window.location.search);
@@ -92,58 +109,72 @@
     const stockEl = document.getElementById("stock");
     const loader = document.getElementById("loader");
     const retirarDiv = document.getElementById("retirarDiv");
+    const errorDiv = document.getElementById("errorDiv");
+    const errorMsg = document.getElementById("errorMsg");
+    const retryBtn = document.getElementById("retryBtn");
 
-    if (!codigoParam) {
-      nombreEl.innerText = "❌ No se proporcionó un código.";
-      loader.style.display = "none";
-    } else {
-      fetch(`${apiUrl}?action=ver&codigo=${codigoParam}`)
-        .then(res => res.json())
-        .then(data => {
-          loader.style.display = "none";
-          if (data.success) {
-            nombreEl.innerText = data.producto;
-            codigoEl.innerText = "Código: " + data.codigo;
-            stockEl.innerText = "Stock actual: " + data.stock;
-            retirarDiv.style.display = "block";
+    retryBtn.onclick = () => location.reload();
 
-            document.getElementById("btnRetirar").onclick = () => {
-              const cantidad = parseInt(document.getElementById("cantidad").value);
-              const persona = document.getElementById("persona").value.trim();
-              if (!cantidad || cantidad <= 0 || !persona) {
-                alert("Ingrese cantidad válida y nombre.");
-                return;
+    async function cargarProducto() {
+      if (!codigoParam) {
+        mostrarError("❌ No se proporcionó un código válido.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiUrl}?action=ver&codigo=${codigoParam}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Error de conexión con el servidor");
+        const data = await res.json();
+
+        loader.style.display = "none";
+
+        if (data.success) {
+          nombreEl.innerText = data.producto;
+          codigoEl.innerText = "Código: " + data.codigo;
+          stockEl.innerText = "Stock actual: " + data.stock;
+          retirarDiv.style.display = "block";
+
+          document.getElementById("btnRetirar").onclick = async () => {
+            const cantidad = parseInt(document.getElementById("cantidad").value);
+            const persona = document.getElementById("persona").value.trim();
+
+            if (!cantidad || cantidad <= 0 || !persona) {
+              alert("Ingrese cantidad válida y nombre.");
+              return;
+            }
+
+            try {
+              const r = await fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}`);
+              const result = await r.json();
+              if (result.success) {
+                alert("✅ Retiro realizado correctamente");
+                stockEl.innerText = "Stock actualizado: " + result.nuevoStock;
+                stockEl.classList.add("success");
+              } else {
+                alert("❌ " + result.message);
               }
-              fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}`)
-                .then(res => res.json())
-                .then(r => {
-                  if (r.success) {
-                    alert("✅ Retiro realizado correctamente");
-                    stockEl.innerText = "Stock actualizado: " + r.nuevoStock;
-                  } else {
-                    alert("❌ " + r.message);
-                  }
-                })
-                .catch(() => alert("⚠️ Error al procesar el retiro"));
-            };
-          } else {
-            nombreEl.innerText = "❌ Producto no encontrado";
-            codigoEl.innerText = "Código: " + codigoParam;
-            nombreEl.classList.add("error");
-          }
-        })
-        .catch(err => {
-          loader.style.display = "none";
-          nombreEl.innerText = "⚠️ Error al cargar datos";
-          codigoEl.innerText = err.message;
-          nombreEl.classList.add("error");
-        });
+            } catch (err) {
+              alert("⚠️ Error al procesar el retiro: " + err.message);
+            }
+          };
+        } else {
+          mostrarError("❌ Producto no encontrado");
+          codigoEl.innerText = "Código: " + codigoParam;
+        }
+      } catch (err) {
+        mostrarError("⚠️ Error al cargar datos — " + err.message);
+      }
     }
+
+    function mostrarError(msg) {
+      loader.style.display = "none";
+      nombreEl.innerText = "Error al cargar producto";
+      nombreEl.classList.add("error");
+      errorMsg.innerText = msg;
+      errorDiv.style.display = "block";
+    }
+
+    cargarProducto();
   </script>
 </body>
 </html>
-
-
-
-
-
