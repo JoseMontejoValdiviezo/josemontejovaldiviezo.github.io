@@ -81,7 +81,9 @@
   </div>
 
   <script>
+    // 🔗 URL del Apps Script publicado como aplicación web
     const apiUrl = "https://script.google.com/macros/s/AKfycbw2DsbV6EI7RV8B09B6kPA4HqV65yLJePQ8Ml_lZevJomCsCNSDVd4XF5LG66_oErpbHA/exec";
+
     const params = new URLSearchParams(window.location.search);
     const codigoParam = params.get("codigo")?.trim();
 
@@ -112,25 +114,17 @@
                 alert("Ingrese cantidad válida y nombre.");
                 return;
               }
-              fetch(apiUrl, {
-                method: "POST",
-                body: new URLSearchParams({
-                  action: "retirar",
-                  codigo: codigoParam,
-                  cantidad: cantidad,
-                  persona: persona
+              fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}`)
+                .then(res => res.json())
+                .then(r => {
+                  if (r.success) {
+                    alert("✅ Retiro realizado correctamente");
+                    stockEl.innerText = "Stock actualizado: " + r.nuevoStock;
+                  } else {
+                    alert("❌ " + r.message);
+                  }
                 })
-              })
-              .then(res => res.json())
-              .then(r => {
-                if (r.success) {
-                  alert("✅ Retiro realizado correctamente");
-                  stockEl.innerText = "Stock actualizado: " + r.nuevoStock;
-                } else {
-                  alert("❌ " + r.message);
-                }
-              })
-              .catch(() => alert("⚠️ Error al procesar el retiro"));
+                .catch(() => alert("⚠️ Error al procesar el retiro"));
             };
           } else {
             nombreEl.innerText = "❌ Producto no encontrado";
@@ -138,9 +132,10 @@
             nombreEl.classList.add("error");
           }
         })
-        .catch(() => {
+        .catch(err => {
           loader.style.display = "none";
           nombreEl.innerText = "⚠️ Error al cargar datos";
+          codigoEl.innerText = err.message;
           nombreEl.classList.add("error");
         });
     }
