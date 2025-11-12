@@ -122,7 +122,7 @@
       }
 
       try {
-        const res = await fetch(`${apiUrl}?accion=ver&codigo=${codigoParam}`, { cache: "no-store" });
+        const res = await fetch(`${apiUrl}?action=ver&codigo=${codigoParam}`, { cache: "no-store" });
         if (!res.ok) throw new Error("Error de conexión con el servidor");
         const data = await res.json();
 
@@ -144,7 +144,7 @@
             }
 
             try {
-              const r = await fetch(`${apiUrl}?accion=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}`);
+              const r = await fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}`);
               const result = await r.json();
               if (result.success) {
                 alert("✅ Retiro realizado correctamente");
@@ -178,6 +178,7 @@
   </script>
 </body>
 </html>
+
 
 
 
