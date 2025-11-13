@@ -147,10 +147,16 @@
             try {
               const r = await fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}&maquina=${encodeURIComponent(maquina)}`);
               const result = await r.json();
+
               if (result.success) {
                 alert("✅ Retiro realizado correctamente");
                 stockEl.innerText = "Stock actualizado: " + result.nuevoStock;
                 stockEl.classList.add("success");
+
+                // 🧹 Limpiar campos
+                document.getElementById("cantidad").value = "";
+                document.getElementById("persona").value = "";
+                document.getElementById("maquina").value = "";
               } else {
                 alert("❌ " + result.message);
               }
