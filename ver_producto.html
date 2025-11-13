@@ -7,38 +7,57 @@
   <style>
     body {
       font-family: "Segoe UI", sans-serif;
-      background: #eef2f7;
+      background: linear-gradient(135deg, #0050b3, #0078d7);
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
       margin: 0;
+      flex-direction: column;
     }
+
+    .logo {
+      width: 160px;
+      margin-bottom: 20px;
+    }
+
     .card {
       background: white;
       border-radius: 12px;
       padding: 30px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
       max-width: 420px;
+      width: 90%;
       text-align: center;
+      animation: fadeIn 0.5s ease-in-out;
     }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
     h1 {
       font-size: 1.4em;
       color: #2a2a2a;
       margin-bottom: 10px;
     }
+
     p {
       font-size: 1.1em;
       color: #444;
     }
+
     .error {
       color: #e74c3c;
       font-weight: bold;
     }
+
     .success {
       color: #2ecc71;
       font-weight: bold;
     }
+
     .loader {
       border: 5px solid #f3f3f3;
       border-top: 5px solid #0078d7;
@@ -48,10 +67,12 @@
       animation: spin 1s linear infinite;
       margin: 25px auto;
     }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
     input, button {
       padding: 10px;
       margin-top: 10px;
@@ -60,6 +81,7 @@
       border: 1px solid #ccc;
       font-size: 1em;
     }
+
     button {
       background-color: #0078d7;
       color: white;
@@ -67,18 +89,24 @@
       cursor: pointer;
       transition: 0.2s;
     }
+
     button:hover {
       background-color: #005fa3;
     }
+
     #retryBtn {
       background: #e74c3c;
     }
+
     #retryBtn:hover {
       background: #c0392b;
     }
   </style>
 </head>
 <body>
+  <!-- Logo CARVIMSA -->
+  <img class="logo" src="https://carvimsa.com/assets/images/logo.png" alt="Logo CARVIMSA">
+
   <div class="card">
     <div id="loader" class="loader"></div>
     <h1 id="nombre">Cargando producto...</h1>
@@ -140,20 +168,19 @@
             const maquina = document.getElementById("maquina").value.trim();
 
             if (!cantidad || cantidad <= 0 || !persona || !maquina) {
-              alert("Ingrese cantidad válida, nombre de persona y máquina.");
+              alert("Ingrese cantidad válida, nombre y máquina.");
               return;
             }
 
             try {
               const r = await fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}&maquina=${encodeURIComponent(maquina)}`);
               const result = await r.json();
-
               if (result.success) {
                 alert("✅ Retiro realizado correctamente");
                 stockEl.innerText = "Stock actualizado: " + result.nuevoStock;
                 stockEl.classList.add("success");
 
-                // 🧹 Limpiar campos
+                // Limpiar campos
                 document.getElementById("cantidad").value = "";
                 document.getElementById("persona").value = "";
                 document.getElementById("maquina").value = "";
