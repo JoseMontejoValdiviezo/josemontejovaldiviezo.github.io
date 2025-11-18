@@ -104,7 +104,8 @@
   </style>
 </head>
 <body>
-  <!-- Logo CARVIMSA -->
+
+  <!-- Logo -->
   <img class="logo" src="https://adex-b2peru.s3.amazonaws.com/userfiles/user/logo/136_6148f167d11aa.png" alt="Logo CARVIMSA">
 
   <div class="card">
@@ -166,15 +167,21 @@
             const cantidad = parseInt(document.getElementById("cantidad").value);
             const persona = document.getElementById("persona").value.trim();
             const maquina = document.getElementById("maquina").value.trim();
+            const btn = document.getElementById("btnRetirar");
 
             if (!cantidad || cantidad <= 0 || !persona || !maquina) {
               alert("Ingrese cantidad válida, nombre y máquina.");
               return;
             }
 
+            // 🔒 Desactivar botón al hacer clic
+            btn.disabled = true;
+            btn.innerText = "Procesando...";
+
             try {
               const r = await fetch(`${apiUrl}?action=retirar&codigo=${codigoParam}&cantidad=${cantidad}&persona=${encodeURIComponent(persona)}&maquina=${encodeURIComponent(maquina)}`);
               const result = await r.json();
+
               if (result.success) {
                 alert("✅ Retiro realizado correctamente");
                 stockEl.innerText = "Stock actualizado: " + result.nuevoStock;
@@ -186,9 +193,18 @@
                 document.getElementById("maquina").value = "";
               } else {
                 alert("❌ " + result.message);
+
+                // Reactivar botón si error
+                btn.disabled = false;
+                btn.innerText = "Retirar producto";
               }
+
             } catch (err) {
               alert("⚠️ Error al procesar el retiro: " + err.message);
+
+              // Reactivar botón si falla la conexión
+              btn.disabled = false;
+              btn.innerText = "Retirar producto";
             }
           };
         } else {
@@ -212,5 +228,3 @@
   </script>
 </body>
 </html>
-
-
